@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,6 +15,13 @@ class Settings(BaseSettings):
     sandbox_memory_limit_mb: PositiveInt = Field(default=512, le=512)
     sandbox_cpu_nano_cpus: PositiveInt = Field(default=1_000_000_000, le=1_000_000_000)
     sandbox_pids_limit: PositiveInt = Field(default=64, le=64)
+    dataset_dir: Path = Path("uploads")
+    upload_max_bytes: PositiveInt = 20 * 1024 * 1024
+    dataset_max_rows: PositiveInt = 100_000
+    dataset_max_columns: PositiveInt = 200
+    dataset_max_memory_bytes: PositiveInt = 128 * 1024 * 1024
+    profiling_timeout_seconds: PositiveInt = 30
+    profiling_concurrency: PositiveInt = 2
 
 
 @lru_cache
