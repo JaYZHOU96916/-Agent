@@ -25,3 +25,13 @@ def test_real_container(code: str, expected: SandboxStatus) -> None:
     if expected == SandboxStatus.COMPLETED:
         assert result.stdout == "hello\n"
         assert result.stderr == "stderr\n"
+
+
+def test_real_dataset_transfer_and_analytics(tmp_path):
+    import pandas as pd
+    path = tmp_path / "dataset.parquet"
+    pd.DataFrame({"sales": [10, 20]}).to_parquet(path)
+    executor = DockerSandboxExecutor(Settings())
+    result = executor.execute("import pandas as pd; print(pd.read_parquet('/tmp/dataset.parquet').sales.sum())", dataset_path=path)
+    assert result.status == SandboxStatus.COMPLETED, result
+    assert result.stdout.strip() == "30"

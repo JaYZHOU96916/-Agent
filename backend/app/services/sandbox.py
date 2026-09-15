@@ -9,7 +9,11 @@ clock limits.
 from __future__ import annotations
 
 import logging
+import io
+import tarfile
+import threading
 import time
+from pathlib import Path
 from typing import Any
 
 import docker
@@ -39,16 +43,30 @@ class DockerSandboxExecutor:
             self._client = docker.from_env()
         return self._client
 
-    def execute(self, code: str) -> SandboxResult:
+    def execute(self, code: str, dataset_path: Path | None = None, cancelled=None) -> SandboxResult:
         """Execute code and always remove its container, even after timeout."""
         started = time.monotonic()
         if len(code.encode("utf-8")) > self.MAX_CODE_BYTES or "\x00" in code:
             raise ValueError("Code must be at most 64 KiB and contain no NUL bytes.")
         container: Any | None = None
+        finished = threading.Event()
+        watcher = None
         try:
+            command = ["-I", "-u", "-c", code]
+            if dataset_path is not None:
+                if not dataset_path.is_file() or dataset_path.stat().st_size > 128 * 1024**2:
+                    raise ValueError("Dataset missing or exceeds sandbox input limit")
+                # A trusted bootstrap waits until the complete archive has arrived.
+                command = ["-I", "-u", "-c",
+                           "import os,time,runpy\n"
+                           "deadline=time.monotonic()+15\n"
+                           "while not os.path.exists('/tmp/input-ready'):\n"
+                           " if time.monotonic()>deadline: raise TimeoutError('input not ready')\n"
+                           " time.sleep(.02)\n"
+                           "runpy.run_path('/tmp/analysis.py',run_name='__main__')"]
             container = self.client.containers.create(
                 image=self.settings.sandbox_image,
-                command=["-I", "-u", "-c", code],
+                command=command,
                 working_dir="/workspace",
                 user="65534:65534",
                 network_disabled=True,
@@ -57,7 +75,7 @@ class DockerSandboxExecutor:
                 nano_cpus=self.settings.sandbox_cpu_nano_cpus,
                 pids_limit=self.settings.sandbox_pids_limit,
                 read_only=True,
-                tmpfs={"/tmp": "rw,noexec,nosuid,size=64m"},
+                tmpfs={"/tmp": "rw,noexec,nosuid,size=192m" if dataset_path else "rw,noexec,nosuid,size=64m"},
                 cap_drop=["ALL"],
                 security_opt=["no-new-privileges:true"],
                 ulimits=[Ulimit(name="nofile", soft=256, hard=256),
@@ -67,6 +85,27 @@ class DockerSandboxExecutor:
                 auto_remove=False,
             )
             container.start()
+            if dataset_path is not None:
+                with io.BytesIO() as archive:
+                    with tarfile.open(fileobj=archive, mode="w") as tar:
+                        for name, value in (("dataset.parquet", dataset_path.read_bytes()),
+                                            ("analysis.py", code.encode()), ("input-ready", b"ready")):
+                            info = tarfile.TarInfo(name)
+                            info.size, info.mode, info.uid, info.gid = len(value), 0o400, 65534, 65534
+                            tar.addfile(info, io.BytesIO(value))
+                    archive.seek(0)
+                    container.put_archive("/tmp", archive)
+            if cancelled is not None:
+                def cancel_watch():
+                    while not finished.wait(.1):
+                        if cancelled.is_set():
+                            try:
+                                container.kill()
+                            except DockerException:
+                                pass
+                            return
+                watcher = threading.Thread(target=cancel_watch, daemon=True)
+                watcher.start()
             try:
                 wait_result = container.wait(timeout=self.settings.sandbox_timeout_seconds)
             except (ReadTimeout, RequestsConnectionError) as error:
@@ -114,6 +153,9 @@ class DockerSandboxExecutor:
                 duration_ms=self._duration_ms(started),
             )
         finally:
+            finished.set()
+            if watcher is not None:
+                watcher.join(timeout=1)
             if container is not None:
                 try:
                     container.remove(force=True)
