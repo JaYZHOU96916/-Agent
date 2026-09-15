@@ -5,6 +5,8 @@ from unittest.mock import create_autospec
 
 import pytest
 from requests.exceptions import ReadTimeout
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from urllib3.exceptions import ReadTimeoutError
 from pydantic import ValidationError
 
 from app.core.config import Settings
@@ -45,9 +47,13 @@ def test_sandbox_uses_restrictive_docker_options() -> None:
     assert container.remove.call_args.kwargs == {"force": True}
 
 
-def test_timeout_kills_container_and_returns_streams() -> None:
+@pytest.mark.parametrize("error", [
+    ReadTimeout("timeout"),
+    RequestsConnectionError(ReadTimeoutError(None, "/containers/id/wait", "Read timed out.")),
+])
+def test_timeout_kills_container_and_returns_streams(error) -> None:
     container = Mock()
-    container.wait.side_effect = ReadTimeout("timeout")
+    container.wait.side_effect = error
     container.logs.side_effect = [iter([b"progress"]), iter([])]
     container.attrs = {"State": {"OOMKilled": False}}
     executor, _ = build_executor(container)
@@ -58,6 +64,16 @@ def test_timeout_kills_container_and_returns_streams() -> None:
     assert result.timed_out is True
     assert result.stdout == "progress"
     container.kill.assert_called_once_with()
+    container.remove.assert_called_once_with(force=True)
+
+
+def test_connection_failure_is_not_mislabeled_as_execution_timeout() -> None:
+    container = Mock()
+    container.wait.side_effect = RequestsConnectionError("Connection reset")
+    executor, _ = build_executor(container)
+    result = executor.execute("print(1)")
+    assert result.status is SandboxStatus.ENGINE_ERROR
+    assert result.timed_out is False
     container.remove.assert_called_once_with(force=True)
 
 

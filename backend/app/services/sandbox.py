@@ -16,6 +16,8 @@ import docker
 from docker.errors import APIError, DockerException
 from docker.types import LogConfig, Ulimit
 from requests.exceptions import ReadTimeout
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from urllib3.exceptions import ReadTimeoutError
 
 from app.core.config import Settings, get_settings
 from app.schemas.sandbox import SandboxResult, SandboxStatus
@@ -67,7 +69,13 @@ class DockerSandboxExecutor:
             container.start()
             try:
                 wait_result = container.wait(timeout=self.settings.sandbox_timeout_seconds)
-            except ReadTimeout:
+            except (ReadTimeout, RequestsConnectionError) as error:
+                # Requests wraps streamed HTTP response read timeouts in
+                # ConnectionError on some transports, including Docker's Unix socket.
+                if isinstance(error, RequestsConnectionError) and not any(
+                    isinstance(cause, ReadTimeoutError) for cause in error.args
+                ):
+                    raise
                 container.kill()
                 stdout, stderr = self._logs(container)
                 return SandboxResult(
