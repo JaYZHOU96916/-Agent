@@ -8,13 +8,13 @@ clock limits.
 
 from __future__ import annotations
 
-import io
-import tarfile
+import logging
 import time
 from typing import Any
 
 import docker
 from docker.errors import APIError, DockerException
+from docker.types import LogConfig, Ulimit
 from requests.exceptions import ReadTimeout
 
 from app.core.config import Settings, get_settings
@@ -24,7 +24,8 @@ from app.schemas.sandbox import SandboxResult, SandboxStatus
 class DockerSandboxExecutor:
     """Run one Python script in a fresh constrained Docker container."""
 
-    _SCRIPT_PATH = "/workspace/analysis.py"
+    MAX_CODE_BYTES = 64 * 1024
+    MAX_LOG_BYTES = 256 * 1024
 
     def __init__(self, settings: Settings | None = None, client: Any | None = None) -> None:
         self.settings = settings or get_settings()
@@ -39,25 +40,30 @@ class DockerSandboxExecutor:
     def execute(self, code: str) -> SandboxResult:
         """Execute code and always remove its container, even after timeout."""
         started = time.monotonic()
+        if len(code.encode("utf-8")) > self.MAX_CODE_BYTES or "\x00" in code:
+            raise ValueError("Code must be at most 64 KiB and contain no NUL bytes.")
         container: Any | None = None
         try:
             container = self.client.containers.create(
                 image=self.settings.sandbox_image,
-                command=[self._SCRIPT_PATH],
+                command=["-I", "-u", "-c", code],
                 working_dir="/workspace",
                 user="65534:65534",
                 network_disabled=True,
                 mem_limit=f"{self.settings.sandbox_memory_limit_mb}m",
+                memswap_limit=f"{self.settings.sandbox_memory_limit_mb}m",
                 nano_cpus=self.settings.sandbox_cpu_nano_cpus,
                 pids_limit=self.settings.sandbox_pids_limit,
                 read_only=True,
                 tmpfs={"/tmp": "rw,noexec,nosuid,size=64m"},
                 cap_drop=["ALL"],
                 security_opt=["no-new-privileges:true"],
+                ulimits=[Ulimit(name="nofile", soft=256, hard=256),
+                         Ulimit(name="core", soft=0, hard=0)],
+                log_config=LogConfig(type="json-file", config={"max-size": "1m", "max-file": "1"}),
                 detach=True,
                 auto_remove=False,
             )
-            container.put_archive("/workspace", self._script_archive(code))
             container.start()
             try:
                 wait_result = container.wait(timeout=self.settings.sandbox_timeout_seconds)
@@ -67,7 +73,7 @@ class DockerSandboxExecutor:
                 return SandboxResult(
                     status=SandboxStatus.TIMED_OUT,
                     stdout=stdout,
-                    stderr=stderr or "Execution exceeded the 10-second sandbox limit.",
+                    stderr=stderr or f"Execution exceeded the {self.settings.sandbox_timeout_seconds}-second sandbox limit.",
                     duration_ms=self._duration_ms(started),
                     timed_out=True,
                 )
@@ -81,7 +87,7 @@ class DockerSandboxExecutor:
                 return SandboxResult(
                     status=SandboxStatus.MEMORY_LIMIT_EXCEEDED,
                     stdout=stdout,
-                    stderr=stderr or "Execution exceeded the 512MB sandbox memory limit.",
+                    stderr=stderr or f"Execution exceeded the {self.settings.sandbox_memory_limit_mb}MB sandbox memory limit.",
                     exit_code=exit_code,
                     duration_ms=self._duration_ms(started),
                     memory_limit_exceeded=True,
@@ -104,25 +110,26 @@ class DockerSandboxExecutor:
                 try:
                     container.remove(force=True)
                 except (APIError, DockerException):
-                    pass
+                    logging.getLogger(__name__).exception("Failed to remove sandbox container")
 
     @classmethod
-    def _script_archive(cls, code: str) -> bytes:
-        encoded = code.encode("utf-8")
-        archive = io.BytesIO()
-        with tarfile.open(fileobj=archive, mode="w") as tar:
-            info = tarfile.TarInfo(name="analysis.py")
-            info.size = len(encoded)
-            info.mode = 0o500
-            info.uid = 65534
-            info.gid = 65534
-            tar.addfile(info, io.BytesIO(encoded))
-        return archive.getvalue()
-
-    @staticmethod
-    def _logs(container: Any) -> tuple[str, str]:
-        stdout, stderr = container.logs(stdout=True, stderr=True, demux=True)
-        return (stdout or b"").decode("utf-8", "replace"), (stderr or b"").decode("utf-8", "replace")
+    def _logs(cls, container: Any) -> tuple[str, str]:
+        outputs = []
+        for is_stdout in (True, False):
+            stream = container.logs(stdout=is_stdout, stderr=not is_stdout, stream=True, follow=False)
+            output = bytearray()
+            try:
+                for chunk in stream:
+                    remaining = cls.MAX_LOG_BYTES - len(output)
+                    output.extend(chunk[:remaining])
+                    if len(chunk) > remaining:
+                        output.extend(b"\n[output truncated]")
+                        break
+            finally:
+                if hasattr(stream, "close"):
+                    stream.close()
+            outputs.append(output.decode("utf-8", "replace"))
+        return outputs[0], outputs[1]
 
     @staticmethod
     def _duration_ms(started: float) -> int:
