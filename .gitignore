@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Runtime state, secrets, uploads, and generated artifacts
+.env
+.env.*
+!.env.example
+uploads/
+artifacts/
+tmp/
+*.log
+
+# User datasets: never commit potentially sensitive or large source data
+data/
+datasets/
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.parquet
+*.feather
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
