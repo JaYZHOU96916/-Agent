@@ -9,8 +9,6 @@ clock limits.
 from __future__ import annotations
 
 import logging
-import io
-import tarfile
 import threading
 import time
 from pathlib import Path
@@ -43,7 +41,7 @@ class DockerSandboxExecutor:
             self._client = docker.from_env()
         return self._client
 
-    def execute(self, code: str, dataset_path: Path | None = None, cancelled=None) -> SandboxResult:
+    def execute(self, code: str, dataset_path: Path | None = None, cancelled=None, on_output=None) -> SandboxResult:
         """Execute code and always remove its container, even after timeout."""
         started = time.monotonic()
         if len(code.encode("utf-8")) > self.MAX_CODE_BYTES or "\x00" in code:
@@ -51,19 +49,24 @@ class DockerSandboxExecutor:
         container: Any | None = None
         finished = threading.Event()
         watcher = None
+        log_threads = []
         try:
             command = ["-I", "-u", "-c", code]
             if dataset_path is not None:
                 if not dataset_path.is_file() or dataset_path.stat().st_size > 128 * 1024**2:
                     raise ValueError("Dataset missing or exceeds sandbox input limit")
-                # A trusted bootstrap waits until the complete archive has arrived.
+                # Transfer via stdin: Docker's archive API refuses read-only rootfs
+                # even when the destination is a writable tmpfs.
                 command = ["-I", "-u", "-c",
-                           "import os,time,runpy\n"
-                           "deadline=time.monotonic()+15\n"
-                           "while not os.path.exists('/tmp/input-ready'):\n"
-                           " if time.monotonic()>deadline: raise TimeoutError('input not ready')\n"
-                           " time.sleep(.02)\n"
-                           "runpy.run_path('/tmp/analysis.py',run_name='__main__')"]
+                           "import sys,runpy\n"
+                           "n=int.from_bytes(sys.stdin.buffer.read(8),'big')\n"
+                           "with open('/tmp/dataset.parquet','wb') as f:\n"
+                           " while n:\n"
+                           "  block=sys.stdin.buffer.read(min(n,65536))\n"
+                           "  if not block: raise EOFError('incomplete dataset')\n"
+                           "  f.write(block); n-=len(block)\n"
+                           "with open('/tmp/analysis.py','w') as f: f.write(sys.argv[1])\n"
+                           "runpy.run_path('/tmp/analysis.py',run_name='__main__')", code]
             container = self.client.containers.create(
                 image=self.settings.sandbox_image,
                 command=command,
@@ -83,18 +86,49 @@ class DockerSandboxExecutor:
                 log_config=LogConfig(type="json-file", config={"max-size": "1m", "max-file": "1"}),
                 detach=True,
                 auto_remove=False,
+                stdin_open=dataset_path is not None,
             )
             container.start()
             if dataset_path is not None:
-                with io.BytesIO() as archive:
-                    with tarfile.open(fileobj=archive, mode="w") as tar:
-                        for name, value in (("dataset.parquet", dataset_path.read_bytes()),
-                                            ("analysis.py", code.encode()), ("input-ready", b"ready")):
-                            info = tarfile.TarInfo(name)
-                            info.size, info.mode, info.uid, info.gid = len(value), 0o400, 65534, 65534
-                            tar.addfile(info, io.BytesIO(value))
-                    archive.seek(0)
-                    container.put_archive("/tmp", archive)
+                connection = container.attach_socket(params={"stdin": True, "stream": True})
+                try:
+                    socket = getattr(connection, "_sock", connection)
+                    socket.settimeout(10)
+                    socket.sendall(dataset_path.stat().st_size.to_bytes(8, "big"))
+                    with dataset_path.open("rb") as source:
+                        while chunk := source.read(65536):
+                            if cancelled is not None and cancelled.is_set():
+                                raise DockerException("Execution cancelled during input transfer")
+                            socket.sendall(chunk)
+                finally:
+                    connection.close()
+            if on_output is not None:
+                def follow_logs(stdout):
+                    stream = None
+                    pending = b""
+                    total = 0
+                    try:
+                        stream = container.logs(stdout=stdout, stderr=not stdout, stream=True, follow=True)
+                        for chunk in stream:
+                            total += len(chunk)
+                            if total > self.MAX_LOG_BYTES:
+                                break
+                            pending += chunk
+                            while b"\n" in pending:
+                                line, pending = pending.split(b"\n", 1)
+                                if not line.startswith(b"__ANALYSIS_RESULT__="):
+                                    on_output("stdout" if stdout else "stderr", line.decode("utf-8", "replace") + "\n")
+                        if pending and not pending.startswith(b"__ANALYSIS_RESULT__="):
+                            on_output("stdout" if stdout else "stderr", pending.decode("utf-8", "replace"))
+                    except (DockerException, OSError):
+                        logging.getLogger(__name__).warning("Live log stream interrupted")
+                    finally:
+                        if stream is not None and hasattr(stream, "close"):
+                            stream.close()
+                for stdout in (True, False):
+                    thread = threading.Thread(target=follow_logs, args=(stdout,), daemon=True)
+                    thread.start()
+                    log_threads.append(thread)
             if cancelled is not None:
                 def cancel_watch():
                     while not finished.wait(.1):
@@ -129,6 +163,14 @@ class DockerSandboxExecutor:
             exit_code = int(wait_result.get("StatusCode", 1))
             container.reload()
             state = container.attrs.get("State", {})
+            if exit_code == 137 and not state.get("OOMKilled"):
+                # Docker can publish the exit event just before its OOM event.
+                for _ in range(10):
+                    time.sleep(.05)
+                    container.reload()
+                    state = container.attrs.get("State", {})
+                    if state.get("OOMKilled"):
+                        break
             oom_killed = bool(state.get("OOMKilled"))
             if oom_killed:
                 return SandboxResult(
@@ -156,6 +198,8 @@ class DockerSandboxExecutor:
             finished.set()
             if watcher is not None:
                 watcher.join(timeout=1)
+            for thread in log_threads:
+                thread.join(timeout=1)
             if container is not None:
                 try:
                     container.remove(force=True)

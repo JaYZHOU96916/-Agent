@@ -153,9 +153,10 @@ def test_request_body_limit_without_content_length(client):
     boundary = "upload-boundary"
     data = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="data.csv"\r\n'
             'Content-Type: text/csv\r\n\r\n').encode()
-    client.app.user_middleware[0].kwargs["max_bytes"] = 1024
-    # TestClient lifespan can build the stack before this test: set on the live middleware.
+    from app.core.upload_limit import UploadLimitMiddleware
     middleware = client.app.middleware_stack.app
+    while not isinstance(middleware, UploadLimitMiddleware):
+        middleware = middleware.app
     middleware.max_bytes = 1024
     response = client.post("/api/v1/datasets", content=iter([data, b"x" * 2048]),
                            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})

@@ -68,8 +68,37 @@ class AnalysisAgent:
                 yield AgentEvent(event="code", data={"code": draft.code, "attempt": attempt, "diff": diff})
                 yield AgentEvent(event="status", data={"state": "SandboxExecutor", "attempt": attempt})
                 # Only the executor thread calls Docker; no untrusted code runs here.
-                result = await asyncio.to_thread(self.sandbox.execute, draft.code, dataset_path=dataset_path, cancelled=cancelled)
+                live = asyncio.Queue(maxsize=256)
+                loop = asyncio.get_running_loop()
+                streamed = set()
+                def enqueue(stream, text):
+                    for start in range(0, min(len(text), 16_384), 1024):
+                        try:
+                            live.put_nowait((stream, text[start:start + 1024]))
+                        except asyncio.QueueFull:
+                            break
+                def on_output(stream, text):
+                    loop.call_soon_threadsafe(enqueue, stream, text)
+                execution = asyncio.create_task(asyncio.to_thread(
+                    self.sandbox.execute, draft.code, dataset_path=dataset_path,
+                    cancelled=cancelled, on_output=on_output))
+                try:
+                    while not execution.done() or not live.empty():
+                        try:
+                            stream, text = await asyncio.wait_for(live.get(), timeout=.1)
+                            streamed.add(stream)
+                            yield AgentEvent(event="stdout", data={"stream": stream, "text": text, "attempt": attempt})
+                        except asyncio.TimeoutError:
+                            pass
+                    result = await execution
+                finally:
+                    if not execution.done():
+                        if cancelled:
+                            cancelled.set()
+                        execution.cancel()
                 for stream, text in (("stdout", result.stdout), ("stderr", result.stderr)):
+                    if stream in streamed:
+                        continue
                     public = "\n".join(line for line in text.splitlines() if not line.startswith(OUTPUT_MARKER))
                     for start in range(0, len(public), 1024):
                         yield AgentEvent(event="stdout", data={"stream": stream, "text": public[start:start + 1024], "attempt": attempt})
