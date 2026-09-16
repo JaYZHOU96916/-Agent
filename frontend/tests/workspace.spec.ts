@@ -38,6 +38,13 @@ test("upload, self-repair stream, chart, type switch and CSV export", async ({ p
   const download = page.waitForEvent("download");
   await page.getByLabel("导出 CSV", { exact: true }).click();
   expect((await download).suggestedFilename()).toBe("analysis-chart.csv");
+  await page.getByLabel("饼图", { exact: true }).click();
+  const pieDownload = page.waitForEvent("download");
+  await page.getByLabel("导出 CSV", { exact: true }).click();
+  const pie = await pieDownload;
+  const fs = await import("node:fs/promises");
+  const contents = await fs.readFile(await pie.path(), "utf8");
+  expect(contents).toContain('"A","120"');
   expect(errors).toEqual([]);
 });
 

@@ -47,14 +47,17 @@ export default function Chart({ option, token }: { option: Record<string, unknow
   }
   function csv() {
     if (!option) return;
-    const series = option.series as Series[];
-    const categories = (option.xAxis as { data?: unknown[] })?.data || [];
+    const series = display.series as Series[];
+    const pie = series[0]?.type === "pie";
+    const categories = (display.xAxis as { data?: unknown[] })?.data ||
+      (pie ? series[0].data.map(item => (item as { name?: string }).name ?? "") : []);
     const escape = (value: unknown) => {
       let text = typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
       if (typeof value !== "number" && /^[=+\-@\t\r]/.test(text)) text = "'" + text;
       return '"' + text.replaceAll('"', '""') + '"';
     };
-    const rows = [["category", ...series.map((s, i) => s.name || `series_${i + 1}`)], ...Array.from({ length: Math.max(...series.map(s => s.data.length)) }, (_, i) => [categories[i] ?? i, ...series.map(s => s.data[i])])];
+    const rows = [["category", ...series.map((s, i) => s.name || `series_${i + 1}`)], ...Array.from({ length: Math.max(...series.map(s => s.data.length)) }, (_, i) =>
+      [categories[i] ?? i, ...series.map(s => pie ? (s.data[i] as { value?: unknown })?.value : s.data[i])])];
     download("analysis-chart.csv", "\ufeff" + rows.map(row => row.map(escape).join(",")).join("\r\n"), "text/csv;charset=utf-8");
   }
   return <section className="chart-card">
