@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { BarChart3, LineChart, PieChart, Download, Image as ImageIcon, FileJson, ChartNoAxesCombined } from "lucide-react";
 import { apiHeaders, download, responseError } from "@/lib/api";
+import { chartPalette, chartTextColor } from "@/lib/theme";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false, loading: () => <div className="chart-loading">正在加载图表…</div> });
 type Series = { type: string; name?: string; data: unknown[] };
@@ -32,10 +33,10 @@ export default function Chart({ option, token }: { option: Record<string, unknow
       result.xAxis = { type: "category", data: data.map(d => d.name) }; result.yAxis = { type: "value" };
       result.series = [{ ...series[0], type, data: data.map(d => d.value) }];
     } else if (type) result.series = series.map(s => ({ ...s, type }));
-    return { ...result, backgroundColor: "transparent", color: ["#32776a", "#c59d53", "#84b6a3", "#52677e"],
-      grid: { left: 55, right: 25, top: 65, bottom: 65, containLabel: true },
+    return { ...result, backgroundColor: "transparent", color: chartPalette,
+      grid: { left: 42, right: 28, top: 62, bottom: 55, containLabel: true },
       tooltip: { trigger: type === "pie" || (!type && originalPie) ? "item" : "axis", renderMode: "richText" },
-      textStyle: { fontFamily: "system-ui, sans-serif", color: "#65736d" } };
+      textStyle: { fontFamily: "system-ui, sans-serif", color: chartTextColor, fontSize: 12 } };
   }, [option, type]);
   async function staticImage() {
     setBusy(true); setError("");
@@ -61,14 +62,14 @@ export default function Chart({ option, token }: { option: Record<string, unknow
     download("analysis-chart.csv", "\ufeff" + rows.map(row => row.map(escape).join(",")).join("\r\n"), "text/csv;charset=utf-8");
   }
   return <section className="chart-card">
-    <div className="section-heading"><div><span className="eyebrow">VISUAL EXPLORATION</span><h2>让数据自己说话</h2></div><span className="tag">交互图表</span></div>
+    <div className="section-heading"><div><h2>可视化结果</h2><p>切换视图，检查数据的不同侧面</p></div><span className="tag">{option ? "已生成" : "待生成"}</span></div>
     <div className="chart-tools"><div className="segmented">{[["bar", BarChart3, "柱状图"], ["line", LineChart, "折线图"], ["pie", PieChart, "饼图"]].map(([value, Icon, label]) => {
       const Component = Icon as typeof BarChart3;
       const unsupported = (option?.series as Series[] | undefined)?.[0]?.type === "scatter";
       return <button key={String(value)} aria-label={String(label)} title={String(label)} className={type === value ? "active" : ""} disabled={!option || unsupported} onClick={() => { setType(String(value)); setImage(""); }}><Component size={16} /></button>;
     })}</div><div className="export-tools"><button disabled={!option} onClick={csv} title="导出图表数据 CSV" aria-label="导出 CSV"><Download size={16} /> CSV</button><button disabled={!option} onClick={() => download("chart-option.json", JSON.stringify(option, null, 2), "application/json")} aria-label="导出 JSON"><FileJson size={16}/></button><button disabled={!option || busy} onClick={staticImage} title="生成静态 PNG" aria-label="静态 PNG"><ImageIcon size={16}/></button></div></div>
-    <div className="chart-stage" data-testid="chart-stage">
-      {image ? <div className="static-chart"><img src={image} alt="分析图表静态降级图片"/><a href={image} download="analysis.png">下载 PNG</a><button onClick={() => setImage("")}>返回交互图表</button></div> : option ? <ChartGuard key={JSON.stringify(display)}><ReactECharts option={display} notMerge style={{ height: "100%", minHeight: 350 }} opts={{ renderer: "canvas" }} /></ChartGuard> : <div className="chart-empty"><div className="chart-orbit"><ChartNoAxesCombined size={36} strokeWidth={1}/></div><h3>下一份洞见，从一个问题开始</h3><p>上传数据并提出问题，分析结果将在这里呈现。</p><div className="ghost-bars" aria-hidden="true">{[26, 46, 39, 65, 52, 82, 72, 98].map((h,i) => <i key={i} style={{ height: h }}/>)}</div><small>图形仅为占位示意，不代表分析结果</small></div>}
+    <div className="chart-stage" data-testid="chart-stage" role="region" aria-label="分析图表">
+      {image ? <div className="static-chart"><img src={image} width={1200} height={680} alt="分析图表静态降级图片"/><a href={image} download="analysis.png">下载 PNG</a><button onClick={() => setImage("")}>返回交互图表</button></div> : option ? <ChartGuard key={JSON.stringify(display)}><ReactECharts option={display} notMerge style={{ height: "100%", minHeight: 350 }} opts={{ renderer: "canvas" }} /></ChartGuard> : <div className="chart-empty"><div className="chart-empty-content"><div className="chart-orbit"><ChartNoAxesCombined size={34} strokeWidth={1.4}/></div><h3>图表将在这里生成</h3><p>完成一次分析后，可切换图表类型、缩放查看并导出结果。</p></div></div>}
     </div>
     {busy && <p className="chart-note">正在生成静态图片…</p>}{error && <p role="alert" className="error-text">{error}</p>}
     <footer className="chart-footer"><span><i/> {option ? "基于沙箱计算结果" : "等待分析结果"}</span><span>滚轮缩放 · 悬停查看数值</span></footer>

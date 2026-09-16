@@ -27,7 +27,7 @@ test("upload, self-repair stream, chart, type switch and CSV export", async ({ p
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/api/v1/analyses", route => route.fulfill({ contentType: "text/event-stream", body: events.map(e => `event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`).join("") }));
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "把数据，变成下一个好决策。" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "让分析有据可循" })).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({ name: "sales.csv", mimeType: "text/csv", buffer: Buffer.from("region,sales\nA,120") });
   await expect(page.getByText("6 行 · 2 列 · 0.1 KB")).toBeVisible();
   await page.getByLabel("分析问题").fill("分析销售额");
@@ -49,6 +49,7 @@ test("upload, self-repair stream, chart, type switch and CSV export", async ({ p
   expect(contents).toContain('"A","120"');
   expect(errors).toEqual([]);
   await page.screenshot({ path: "test-results/workspace-analysis.png", fullPage: true });
+  if (process.env.UPDATE_PREVIEW === "1") await page.screenshot({ path: "../docs/images/workspace-analysis.png", fullPage: true });
 });
 
 test("mobile layout and upload errors", async ({ page }) => {
@@ -59,6 +60,14 @@ test("mobile layout and upload errors", async ({ page }) => {
   await expect(page.locator(".error-banner")).toContainText("CSV 列名重复");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.getByLabel("发送分析")).toBeDisabled();
+  await page.getByLabel("连接设置").click();
+  await expect(page.getByRole("dialog", { name: "连接设置" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "关闭设置" }).last()).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.getByRole("button", { name: "完成" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "连接设置" })).toBeHidden();
+  await page.screenshot({ path: "test-results/workspace-mobile.png", fullPage: true });
 });
 
 test("empty desktop screenshot", async ({ page }) => {

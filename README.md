@@ -2,7 +2,7 @@
 
 上传 CSV / Excel / Parquet，用自然语言提出问题，在同一工作台查看分析规划、Python 代码、执行日志、交互图表与结论。基于 FastAPI、Pydantic v2、Pandas / DuckDB、Redis 和 Next.js 16；生成的代码只在独立 Docker 沙箱中运行。
 
-[一键启动](#一键启动) · [示例与演示](#示例与演示) · [架构](#架构拓扑) · [部署与排错](docs/deployment.md) · [CI 验证](https://github.com/JaYZHOU96916/-Agent/actions/workflows/backend.yml)
+[一键启动](#一键启动) · [示例与演示](#示例与演示) · [架构](#架构拓扑) · [界面设计](docs/design.md) · [部署与排错](docs/deployment.md) · [CI 验证](https://github.com/JaYZHOU96916/-Agent/actions/workflows/backend.yml)
 
 ![工作台交互预览：数据概要、修复记录与图表](docs/images/workspace-analysis.png)
 
