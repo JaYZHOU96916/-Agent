@@ -72,13 +72,14 @@ services:
     networks: [internal, edge]
 
   frontend:
-    image: node:20-alpine
-    working_dir: /app
-    command: ["sh", "-c", "echo 'Frontend is introduced in Phase 4'; tail -f /dev/null"]
-    volumes:
-      - ./frontend:/app:ro
+    build:
+      context: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777

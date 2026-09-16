@@ -14,6 +14,9 @@ env/
 node_modules/
 .next/
 out/
+*.tsbuildinfo
+test-results/
+playwright-report/
 
 # Runtime state, secrets, uploads, and generated artifacts
 .env

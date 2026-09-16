@@ -12,3 +12,4 @@ defusedxml==0.7.1
 python-multipart==0.0.20
 httpx==0.28.1
 redis==5.2.1
+matplotlib==3.10.3

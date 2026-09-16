@@ -9,6 +9,7 @@ from app.core.config import Settings, get_settings
 from app.core.upload_limit import UploadLimitMiddleware
 from app.services.datasets import DatasetError, DatasetService
 from app.api.analysis import router as analysis_router
+from app.api.charts import router as chart_router
 from app.core.auth import TokenAuthMiddleware
 from app.services.agent import AnalysisAgent
 from app.services.llm import ModelClient
@@ -28,11 +29,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = AnalysisStore(settings, app.state.model)
     app.state.agent = AnalysisAgent(app.state.model, DockerSandboxExecutor(settings), settings.agent_max_repairs)
     app.state.analysis_slots = asyncio.Semaphore(2)
+    app.state.chart_slots = asyncio.Semaphore(2)
     app.state.datasets = DatasetService(settings)
     app.add_middleware(UploadLimitMiddleware, max_bytes=settings.upload_max_bytes + 64 * 1024)
     app.add_middleware(TokenAuthMiddleware, token=settings.api_token.get_secret_value())
     app.include_router(router)
     app.include_router(analysis_router)
+    app.include_router(chart_router)
 
     @app.exception_handler(DatasetError)
     async def dataset_error(request: Request, error: DatasetError):
