@@ -14,7 +14,8 @@
 | `LLM_API_KEY`、`LLM_MODEL` | 两项都填写才启用分析；仅服务端使用 |
 | `LLM_TIMEOUT_SECONDS` | 单次模型 HTTP 请求默认 60 秒 |
 | `API_TOKEN` | 可选共享工作台令牌；浏览器连接设置填写同一值 |
-| `DOCKER_GID` | 后端补充组；未指定时启动脚本读取本机 socket GID |
+| `DOCKER_GID` | 后端补充组；脚本在 Linux 读取宿主 socket GID，macOS Docker Desktop 使用容器内代理 socket 的组 0 |
+| `DOCKER_SOCKET_PATH` | 宿主机 Docker socket，默认 `/var/run/docker.sock`；脚本可自动识别 macOS 用户目录 socket |
 | `SANDBOX_IMAGE` | 默认 `data-analysis-sandbox:latest`；改值前自行准备匹配镜像 |
 | `SANDBOX_TIMEOUT_SECONDS` | 默认 10 秒，不能高于 10 |
 | `SANDBOX_MEMORY_LIMIT_MB` | 默认 512 MiB，不能高于 512 |
@@ -28,7 +29,7 @@
 | `PROFILING_TIMEOUT_SECONDS` | 固定解析子进程默认 30 秒 |
 | `DATASET_DIR` | 仅本地 Python 开发路径；Compose 固定 `/app/uploads` 并绑定数据卷 |
 
-Linux 手动启动 Compose 时可先运行 `stat -c '%g' /var/run/docker.sock`，将输出写入 `.env` 的 `DOCKER_GID`。macOS Docker Desktop 要启用默认 Docker socket，使容器中的 `/var/run/docker.sock` 能访问引擎。仅宿主机 `docker info` 成功不足以证明后端用户有权限，因此脚本还实际执行沙箱探针。远程 Docker context/rootless 配置需要匹配的端点与挂载，不在当前脚本的自动配置范围内。
+Linux 手动启动 Compose 时可先运行 `stat -c '%g' /var/run/docker.sock`，将输出写入 `.env` 的 `DOCKER_GID`。macOS Docker Desktop 可使用默认 Docker socket；若只提供 `$HOME/.docker/run/docker.sock`，`start.sh` 会自动设置 `DOCKER_SOCKET_PATH`。Docker Desktop 的 VM 代理在容器内通常将该 socket 显示为 `root:root`，因此脚本为后端非 root 用户增加组 0；可用 `docker compose exec backend ls -l /var/run/docker.sock` 核实。仅宿主机 `docker info` 成功不足以证明后端用户有权限，因此脚本还实际执行沙箱探针。若在 macOS 主机上直接运行 Docker 集成测试，可设置 `DOCKER_HOST=unix://$HOME/.docker/run/docker.sock`。远程 Docker context/rootless 配置需要匹配的端点与挂载，不在当前脚本的自动配置范围内。
 
 ## 日常操作与数据持久化
 

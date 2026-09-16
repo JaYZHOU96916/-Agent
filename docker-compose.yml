@@ -74,7 +74,7 @@ services:
     # Development only: Docker SDK needs an engine endpoint. In production, use a
     # rootless remote Docker API restricted to the sandbox image and its options.
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
       - dataset-data:/app/uploads
     read_only: true
     tmpfs:

@@ -153,7 +153,7 @@ docker compose up --build backend redis sandbox-executor
 
 沙箱按执行请求创建独立容器：禁网、非 root、只读根文件系统、丢弃 Linux capabilities、禁止权限提升、512 MiB 内存且禁用额外 swap、1 CPU、64 PID、默认 10 秒超时。脚本通过 Python 参数执行，FastAPI 进程不使用 `exec` / `eval`。stdout/stderr 分别返回，每路最多保留 256 KiB，并限制 Docker 日志轮转大小。OOM、非零退出与超时返回不同状态。
 
-Compose 的 Docker socket 挂载目前仅是开发配置。后端非 root 用户需要通过 `DOCKER_GID` 与 socket 组权限匹配；`start.sh` 在未显式配置时自动读取本机 socket 组。远程/rootless Engine 需要另外调整 Compose 的 endpoint、权限和挂载，当前一键脚本不自动配置。Docker socket 持有者拥有很高的宿主机权限；生产环境应使用专用执行节点和受控执行服务。数据集以有界标准输入流传入每次新建的只读容器，仅该容器可访问本次数据。
+Compose 的 Docker socket 挂载目前仅是开发配置。后端非 root 用户需要通过 `DOCKER_GID` 与 socket 组权限匹配；`start.sh` 在 Linux 自动读取 socket 组，在 macOS Docker Desktop 使用容器内代理 socket 的组 0，并支持用户目录 socket。远程/rootless Engine 需要另外调整 Compose 的 endpoint、权限和挂载，当前一键脚本不自动配置。Docker socket 持有者拥有很高的宿主机权限；生产环境应使用专用执行节点和受控执行服务。数据集以有界标准输入流传入每次新建的只读容器，仅该容器可访问本次数据。
 
 ## 验证
 
