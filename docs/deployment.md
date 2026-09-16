@@ -107,6 +107,6 @@ location / {
 
 ## 公网上线边界
 
-当前 Next.js 14 存在已记录的上游安全告警；共享令牌不是账户系统。正式对外开放还需升级受影响依赖、用户认证与租户授权、数据保留和备份、流量限制、可观测性，以及将高权限 Docker socket 与 Web 服务隔离。沙箱的禁网、资源限制和非 root 限制不等于宿主机的强安全边界。Phase 5 不宣称这些独立上线工作已经完成。
+运行环境采用 Python 3.14.7、Node.js 26.8.2、TypeScript 7.0.2、Next.js 16.3.5 和 React 19.3.0；其中 Node.js 26 是 Current 而非 LTS，生产环境应评估升级频率和长期支持需求。共享令牌不是账户系统。正式对外开放还需持续更新受影响依赖、用户认证与租户授权、数据保留和备份、流量限制、可观测性，以及将高权限 Docker socket 与 Web 服务隔离。沙箱的禁网、资源限制和非 root 限制不等于宿主机的强安全边界。Phase 5 不宣称这些独立上线工作已经完成。
 
 Compose 健康检查和启动依赖的行为参考 [Docker 官方文档](https://docs.docker.com/compose/how-tos/startup-order/)，参数参考 [docker compose up](https://docs.docker.com/reference/cli/docker/compose/up/)。

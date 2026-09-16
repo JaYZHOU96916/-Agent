@@ -7,7 +7,7 @@ python3 examples/generate.py
 # 已有输出时，换一个目录，避免覆盖：
 python3 examples/generate.py --output examples/generated/second-run
 
-# Python 3.11+，安装 backend/requirements.txt 后：
+# Python 3.14+，安装 backend/requirements.txt 后：
 .venv/bin/python examples/generate.py --format all --output examples/generated/all-formats
 ```
 

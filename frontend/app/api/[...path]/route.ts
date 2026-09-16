@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function proxy(request: NextRequest, { params }: { params: { path: string[] } }) {
-  const path = params.path.join("/");
+async function proxy(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const path = (await params).path.join("/");
   if (!/^v1\/(datasets(?:\/[a-f0-9-]+)?|analyses|system|sessions\/[a-f0-9-]+|charts\/png)$/.test(path))
     return Response.json({ detail: "Not found" }, { status: 404 });
   const origin = request.headers.get("origin");

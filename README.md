@@ -1,6 +1,6 @@
 # 自动化数据分析 Agent
 
-上传 CSV / Excel / Parquet，用自然语言提出问题，在同一工作台查看分析规划、Python 代码、执行日志、交互图表与结论。基于 FastAPI、Pydantic v2、Pandas / DuckDB、Redis 和 Next.js 14；生成的代码只在独立 Docker 沙箱中运行。
+上传 CSV / Excel / Parquet，用自然语言提出问题，在同一工作台查看分析规划、Python 代码、执行日志、交互图表与结论。基于 FastAPI、Pydantic v2、Pandas / DuckDB、Redis 和 Next.js 16；生成的代码只在独立 Docker 沙箱中运行。
 
 [一键启动](#一键启动) · [示例与演示](#示例与演示) · [架构](#架构拓扑) · [部署与排错](docs/deployment.md) · [CI 验证](https://github.com/JaYZHOU96916/-Agent/actions/workflows/backend.yml)
 
@@ -19,7 +19,7 @@
 | Phase 4：Next.js 看板 | 已实现；上传、虚拟字段列表、聊天、图表与导出 |
 | Phase 5：示例、部署脚本、完整交付 | 已实现；可复现示例、一键启动、健康探针、部署文档与界面预览 |
 
-当前交付面向本机/单租户，支持可选的共享 API 令牌，但没有用户账户、租户隔离或数据保留策略。Next.js 14 依照项目要求保留，依赖审计仍有框架上游告警；不应在公网直接开放。Phase 5 完成交付包装，正式上线仍需解决框架版本、安全隔离和运维验收。
+当前交付面向本机/单租户，支持可选的共享 API 令牌，但没有用户账户、租户隔离或数据保留策略；不应在公网直接开放。运行环境已升级到 Python 3.14.7、Node.js 26.8.2、TypeScript 7.0.2、Next.js 16.3.5 和 React 19.3.0。Node.js 26 属于 Current 版本，并非 LTS；正式生产部署应按组织的稳定性要求选择并持续维护运行时。Phase 5 完成交付包装，正式上线仍需完成安全隔离和运维验收。
 
 ## 一键启动
 
@@ -81,10 +81,10 @@ flowchart TB
 
 Redis 只连接内部网络，不映射宿主机端口；后端连接内部网络及可访问模型的网络；前后端端口均绑定 `127.0.0.1`。代码沙箱无网络，不挂载 Docker socket 或宿主机目录。模型服务会收到概要、前 5 行样例、问题、计算事实和修复时的报错；选择服务前需确认这些内容可以发送给该供应商。
 
-## 本地启动（Python 3.11+）
+## 本地启动（Python 3.14+）
 
 ```sh
-python3.11 -m venv .venv
+python3.14 -m venv .venv
 .venv/bin/python -m pip install -r backend/requirements-dev.txt
 PYTHONPATH=backend .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
@@ -172,7 +172,7 @@ npm --prefix frontend run build
 npm --prefix frontend test
 ```
 
-未设置 `RUN_DOCKER_TESTS=1` 时明确跳过真实容器测试；全栈联调还需 `RUN_STACK_TESTS=1` 和 Redis。GitHub Actions 使用 Python 3.11，构建镜像并执行真实禁网、只读、超时、OOM、数据传入与自修复联调，同时构建前端和运行 Playwright。交付测试还校验六份示例文件的解析、可复现性、禁止覆盖、启动失败退出码和 `.env` 不被当作 shell 执行。CI 最后实际运行 `./start.sh`，检查四服务启动与后端非 root 用户的 Docker 权限。浏览器测试中的模型答复为测试桩；真实模型需要单独配置密钥验收。
+未设置 `RUN_DOCKER_TESTS=1` 时明确跳过真实容器测试；全栈联调还需 `RUN_STACK_TESTS=1` 和 Redis。GitHub Actions 使用 Python 3.14 和 Node.js 26，构建镜像并执行真实禁网、只读、超时、OOM、数据传入与自修复联调，同时构建前端和运行 Playwright。交付测试还校验六份示例文件的解析、可复现性、禁止覆盖、启动失败退出码和 `.env` 不被当作 shell 执行。CI 最后实际运行 `./start.sh`，检查四服务启动与后端非 root 用户的 Docker 权限。浏览器测试中的模型答复为测试桩；真实模型需要单独配置密钥验收。
 
 重新生成界面预览：执行前端构建和测试后，检查 `frontend/test-results/workspace-analysis.png`；该产物默认不入 Git，文档使用人工核对后的 `docs/images/workspace-analysis.png`。
 

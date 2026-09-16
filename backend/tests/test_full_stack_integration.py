@@ -1,5 +1,6 @@
 """Real Docker + real Redis; deterministic model fixture, never a production mock mode."""
 import os
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -47,7 +48,8 @@ def test_upload_repair_sse_and_real_redis_cache(tmp_path):
         assert client.get("/api/v1/system").json()["redis_available"] is True
         upload = client.post("/api/v1/datasets", files={"file": ("sales.csv", b"sales\n10\n20\n")})
         assert upload.status_code == 201
-        question = "total sales " + tmp_path.name
+        # Redis may survive local test reruns; keep this test's first request uncached.
+        question = "total sales " + uuid.uuid4().hex
         body = {"dataset_id": upload.json()["dataset_id"], "question": question}
         response = client.post("/api/v1/analyses", json=body)
         events = parse_sse(response.text)

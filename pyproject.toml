@@ -2,7 +2,7 @@
 name = "data-analysis-agent"
 version = "0.1.0"
 description = "Production-grade code-interpreter data analysis agent"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]

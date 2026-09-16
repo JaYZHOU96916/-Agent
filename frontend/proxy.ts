@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 // This single-page workspace uses route handlers only, no Server Actions,
 // image optimizer, rewrites, or client-side RSC navigation.
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/_next/image")) return new NextResponse(null, { status: 404 });
   if (request.headers.has("next-action") || request.headers.has("rsc") || request.headers.has("next-router-state-tree"))
     return new NextResponse("Unsupported request", { status: 400 });
