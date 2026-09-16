@@ -27,6 +27,8 @@ test("upload, self-repair stream, chart, type switch and CSV export", async ({ p
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/api/v1/analyses", route => route.fulfill({ contentType: "text/event-stream", body: events.map(e => `event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`).join("") }));
   await page.goto("/");
+  await expect(page).toHaveTitle("ANZ · 数据分析工作台");
+  await expect(page.getByRole("link", { name: "ANZ 首页" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "让分析有据可循" })).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({ name: "sales.csv", mimeType: "text/csv", buffer: Buffer.from("region,sales\nA,120") });
   await expect(page.getByText("6 行 · 2 列 · 0.1 KB")).toBeVisible();

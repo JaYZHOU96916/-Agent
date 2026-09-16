@@ -83,7 +83,7 @@ export default function Workspace() {
   return <div className="workspace">
     <a className="skip-link" href="#workspace-main">跳转到主要内容</a>
     <aside className="sidebar">
-      <a className="brand" href="/" aria-label="Forma 首页"><span className="brand-mark"><Layers3 size={22}/></span>forma<span className="brand-dot">.</span></a>
+      <a className="brand" href="/" aria-label="ANZ 首页"><span className="brand-mark"><Layers3 size={22}/></span>ANZ</a>
       <div className="workspace-label">数据分析工作空间 <span>本地</span></div>
       <button className="new-button" disabled={busy} onClick={() => { setRuns([]); setChart(null); setError(""); }}><Plus size={17}/> 新建分析 <span>↗</span></button>
       <div className="sidebar-section"><span className="eyebrow">工作区</span><div className="nav-active"><Sparkles size={17}/> 分析工作台</div></div>
@@ -91,7 +91,7 @@ export default function Workspace() {
         {dataset ? <div className="dataset-link"><FileSpreadsheet size={18}/><span title={dataset.filename}>{dataset.filename}</span><i/></div> : <p className="sidebar-muted">上传文件后，数据源将在这里显示。</p>}
       </div>
       <div className="privacy-note"><ShieldCheck size={20}/><h4>隔离执行，过程可追溯</h4><p>生成的代码在独立沙箱中运行；规划、修复记录与计算结果都可查看。</p></div>
-      <div className="sidebar-bottom"><button onClick={() => setSettings(true)}><Settings2 size={17}/> 连接设置</button><a href="https://github.com/JaYZHOU96916/-Agent" target="_blank" rel="noreferrer"><CircleHelp size={17}/> 项目文档 <ArrowUpRight size={14}/></a><div className="profile"><span>F</span><div>本地工作区<small>单用户部署</small></div></div></div>
+      <div className="sidebar-bottom"><button onClick={() => setSettings(true)}><Settings2 size={17}/> 连接设置</button><a href="https://github.com/JaYZHOU96916/-Agent" target="_blank" rel="noreferrer"><CircleHelp size={17}/> 项目文档 <ArrowUpRight size={14}/></a><div className="profile"><span>Z</span><div>本地工作区<small>单用户部署</small></div></div></div>
     </aside>
     <main className="main" id="workspace-main" tabIndex={-1}>
       <header className="topbar"><div>工作空间 <ChevronRight size={14}/><strong>分析工作台</strong></div><div className="topbar-actions"><div className="service-status" aria-live="polite"><i className={status?.model_configured ? "online" : ""}/>{status?.model_configured ? "模型已连接" : "等待模型配置"}<span className="divider"/><span className="execution-label">隔离代码执行</span></div><button className="topbar-settings" onClick={() => setSettings(true)} aria-label="连接设置"><Settings2 size={18}/></button></div></header>

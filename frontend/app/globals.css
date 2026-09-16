@@ -150,7 +150,6 @@ button svg, a svg { flex-shrink: 0; }
   color: var(--white);
   background: var(--blue-600);
 }
-.brand-dot { color: var(--aqua-200); margin-left: -10px; }
 .workspace-label {
   display: flex;
   justify-content: space-between;
@@ -420,7 +419,7 @@ th { color: var(--slate-700); background: var(--canvas); font-weight: 650; }
   .sidebar { width: 65px; padding: 22px 10px 0; }
   .brand { padding: 0 3px; font-size: 0; gap: 0; }
   .brand-mark { width: 39px; height: 39px; }
-  .brand-dot, .workspace-label, .sidebar-section, .privacy-note, .sidebar-bottom, .new-button { display: none; }
+  .workspace-label, .sidebar-section, .privacy-note, .sidebar-bottom, .new-button { display: none; }
   .main { margin-left: 65px; }
   .topbar-settings { display: grid; }
 }
