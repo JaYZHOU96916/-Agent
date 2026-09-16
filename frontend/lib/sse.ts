@@ -1,8 +1,10 @@
+import { ui, type Language } from "./i18n";
 import type { StreamEvent } from "./types";
 
 /** Decode arbitrary UTF-8/chunk boundaries, comments and CRLF without losing tail frames. */
-export async function consumeSSE(response: Response, onEvent: (event: StreamEvent) => void) {
-  if (!response.body) throw new Error("服务端未返回数据流。");
+export async function consumeSSE(response: Response, onEvent: (event: StreamEvent) => void, language: Language = "zh") {
+  const t = ui[language];
+  if (!response.body) throw new Error(t.noStream);
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -16,7 +18,7 @@ export async function consumeSSE(response: Response, onEvent: (event: StreamEven
     }
     if (data.length) {
       const parsed = JSON.parse(data.join("\n"));
-      if (!parsed || typeof parsed !== "object") throw new Error("无效的 SSE 数据。");
+      if (!parsed || typeof parsed !== "object") throw new Error(t.invalidStream);
       onEvent({ event, data: parsed });
       if (event === "done") finished = true;
     }
@@ -31,10 +33,10 @@ export async function consumeSSE(response: Response, onEvent: (event: StreamEven
         parse(buffer.slice(0, index));
         buffer = buffer.slice(index + boundary[0].length);
       }
-      if (buffer.length > 1_000_000) throw new Error("流式响应超出大小限制。");
+      if (buffer.length > 1_000_000) throw new Error(t.streamTooLarge);
       if (done) break;
     }
     if (buffer.trim()) parse(buffer);
-    if (!finished) throw new Error("连接已中断，分析尚未完成。请重试。");
+    if (!finished) throw new Error(t.streamInterrupted);
   } finally { reader.releaseLock(); }
 }

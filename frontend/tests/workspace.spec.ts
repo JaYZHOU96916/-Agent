@@ -72,6 +72,44 @@ test("mobile layout and upload errors", async ({ page }) => {
   await page.screenshot({ path: "test-results/workspace-mobile.png", fullPage: true });
 });
 
+test("interface language switches without losing the active dataset and persists after reload", async ({ page }) => {
+  await page.route("**/api/v1/analyses", route => route.fulfill({ contentType: "text/event-stream", body: events.map(e => `event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`).join("") }));
+  await page.goto("/");
+  await page.locator('input[type="file"]').setInputFiles({ name: "sales.csv", mimeType: "text/csv", buffer: Buffer.from("region,sales\nA,120") });
+  await expect(page.getByText("6 行 · 2 列 · 0.1 KB")).toBeVisible();
+  await page.getByRole("button", { name: "连接设置" }).first().click();
+  await page.getByRole("dialog", { name: "连接设置" }).getByRole("button", { name: "English" }).click();
+  await expect(page).toHaveTitle("ANZ · Data Analysis Workspace");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("heading", { name: "See how every insight is made" })).toBeVisible();
+  await expect(page.getByText("6 rows · 2 columns · 0.1 KB")).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Field" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Visualization" })).toBeVisible();
+  await page.getByRole("dialog", { name: "Connection settings" }).getByRole("button", { name: "Done" }).click();
+  await page.getByLabel("Analysis question").fill("Analyze sales");
+  await page.getByLabel("Send question").click();
+  await expect(page.getByText("Analysis complete", { exact: true })).toBeVisible();
+  await expect(page.getByText("Auto-repairing: KeyError: sale")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Analysis insight" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Line chart" })).toBeVisible();
+  await page.getByRole("button", { name: "Connection settings" }).first().click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  const dialog = await page.getByRole("dialog", { name: "Connection settings" }).boundingBox();
+  expect(dialog).not.toBeNull();
+  expect(dialog!.x).toBeGreaterThanOrEqual(0);
+  expect(dialog!.x + dialog!.width).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: "test-results/workspace-english-mobile.png", fullPage: true });
+  await page.getByRole("dialog", { name: "Connection settings" }).getByRole("button", { name: "Done" }).click();
+  await page.reload();
+  await expect(page).toHaveTitle("ANZ · Data Analysis Workspace");
+  await expect(page.getByRole("heading", { name: "See how every insight is made" })).toBeVisible();
+  await page.getByRole("button", { name: "Connection settings" }).first().click();
+  await page.getByRole("dialog", { name: "Connection settings" }).getByRole("button", { name: "中文" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+  await expect(page).toHaveTitle("ANZ · 数据分析工作台");
+});
+
 test("empty desktop screenshot", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 980 });
   await page.goto("/");

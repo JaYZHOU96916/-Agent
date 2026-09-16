@@ -35,6 +35,8 @@ cd data-analysis-agent
 
 打开 [本地工作台](http://127.0.0.1:3000)。未配置模型时可上传文件、查看数据概要。编辑 `.env` 中的 `LLM_API_KEY`、`LLM_MODEL` 和供应商 `LLM_BASE_URL` 后，再次执行 `./start.sh` 启用分析。脚本保留已有 `.env` 和数据卷，不会主动调用收费模型接口。浏览器连接设置只填写工作台 `API_TOKEN`，不要填写模型密钥。
 
+在工作台的“连接设置”中可切换界面语言（中文 / English）。选择保存在当前浏览器，刷新后仍有效；数据内容、代码和模型生成的回答保持原文。
+
 ```sh
 docker compose ps -a
 docker compose logs --tail=100 backend frontend redis

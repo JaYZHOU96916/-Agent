@@ -1,9 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { ui } from "@/lib/i18n";
+import { getServerLanguage } from "@/lib/server-language";
 import { workspaceCanvasColor } from "@/lib/theme";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "ANZ · 数据分析工作台", description: "从数据到洞见，可追溯的 AI 分析工作台" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = ui[await getServerLanguage()];
+  return { title: t.documentTitle, description: t.description };
+}
 export const viewport: Viewport = { themeColor: workspaceCanvasColor };
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="zh-CN"><body>{children}</body></html>;
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const language = await getServerLanguage();
+  return <html lang={language === "zh" ? "zh-CN" : "en"}><body>{children}</body></html>;
 }
