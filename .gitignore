@@ -24,6 +24,7 @@ playwright-report/
 !.env.example
 uploads/
 artifacts/
+examples/generated/
 tmp/
 *.log
 

@@ -16,11 +16,17 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements*.txt
       - run: pip install -r backend/requirements-dev.txt
-      - run: ruff check backend
+      - run: ruff check backend examples scripts
+      - run: bash -n start.sh
       - run: docker compose config --quiet
       - run: docker build -t data-analysis-sandbox:latest sandbox-runtime
       - run: PYTHONPATH=backend RUN_DOCKER_TESTS=1 RUN_STACK_TESTS=1 pytest -q
       - run: docker compose build backend frontend
+      - name: Verify one-command deployment with real containers
+        run: ./start.sh
+      - name: Stop delivery stack (keep volumes)
+        if: always()
+        run: docker compose down
   frontend:
     runs-on: ubuntu-latest
     defaults:

@@ -10,7 +10,7 @@ const events = [
   { event: "error", data: { message: "KeyError: sale", recoverable: true, attempt: 0 } },
   { event: "code", data: { code: "print('fixed')", diff: "-sale\n+sales", attempt: 1 } },
   { event: "stdout", data: { text: "计算完成\n", stream: "stdout" } },
-  { event: "chart", data: { option: { title: { text: "区域销售额" }, xAxis: { type: "category", data: ["A", "B"] }, yAxis: { type: "value" }, series: [{ name: "sales", type: "bar", data: [120, 80] }] } } },
+  { event: "chart", data: { option: { animation: false, title: { text: "区域销售额" }, xAxis: { type: "category", data: ["A", "B"] }, yAxis: { type: "value" }, series: [{ name: "sales", type: "bar", data: [120, 80] }] } } },
   { event: "insight", data: { text: "A 区域销售额领先。" } },
   { event: "done", data: { status: "completed" } },
 ];
@@ -21,6 +21,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("upload, self-repair stream, chart, type switch and CSV export", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/api/v1/analyses", route => route.fulfill({ contentType: "text/event-stream", body: events.map(e => `event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`).join("") }));
@@ -46,6 +48,7 @@ test("upload, self-repair stream, chart, type switch and CSV export", async ({ p
   const contents = await fs.readFile(await pie.path(), "utf8");
   expect(contents).toContain('"A","120"');
   expect(errors).toEqual([]);
+  await page.screenshot({ path: "test-results/workspace-analysis.png", fullPage: true });
 });
 
 test("mobile layout and upload errors", async ({ page }) => {
