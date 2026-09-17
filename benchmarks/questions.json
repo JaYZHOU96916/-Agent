@@ -1,0 +1,131 @@
+{
+  "version": "1.0",
+  "datasets": {
+    "sales": {
+      "path": "examples/generated/all-formats/sales",
+      "formats": ["csv", "xlsx", "parquet"],
+      "rows": 288,
+      "columns": 10
+    },
+    "financial_timeseries": {
+      "path": "examples/generated/all-formats/financial_timeseries",
+      "formats": ["csv", "xlsx", "parquet"],
+      "rows": 522,
+      "columns": 5
+    }
+  },
+  "questions": [
+    {
+      "id": "sales-01",
+      "dataset": "sales",
+      "question": "计算全年 revenue 总额，并画一张按月趋势图。",
+      "expected": {"facts": {"revenue_total": 7540350}, "chart_type": "line"},
+      "tolerance": 0
+    },
+    {
+      "id": "sales-02",
+      "dataset": "sales",
+      "question": "计算全年 units 总量，并按 product 汇总销量，用柱状图展示。",
+      "expected": {"facts": {"units_total": 17450, "units_by_product": {"基础版": 5804, "专业版": 5840, "企业版": 5806}}, "chart_type": "bar"},
+      "tolerance": 0
+    },
+    {
+      "id": "sales-03",
+      "dataset": "sales",
+      "question": "按 region 汇总 revenue，指出最高的地区，并画柱状图。",
+      "expected": {"facts": {"revenue_by_region": {"华东": 1834520, "华南": 1928963, "华北": 1906233, "西部": 1870634}, "top_region": "华南"}, "chart_type": "bar"},
+      "tolerance": 0
+    },
+    {
+      "id": "sales-04",
+      "dataset": "sales",
+      "question": "按 product 汇总 revenue，返回每个产品的销售额，并指出销售额最高的产品。",
+      "expected": {"facts": {"revenue_by_product": {"基础版": 574596, "专业版": 1746160, "企业版": 5219594}, "top_product": "企业版"}, "chart_type": "bar"},
+      "tolerance": 0
+    },
+    {
+      "id": "sales-05",
+      "dataset": "sales",
+      "question": "比较线上和合作伙伴两个 channel 的 revenue，并计算各自占全年销售额的比例。",
+      "expected": {"facts": {"revenue_by_channel": {"线上": 3713668, "合作伙伴": 3826682}, "share_by_channel": {"线上": 0.4924843458, "合作伙伴": 0.5075156542}}, "chart_type": "pie"},
+      "tolerance": 0.000001
+    },
+    {
+      "id": "sales-06",
+      "dataset": "sales",
+      "question": "按月汇总 revenue，返回 2025 年 12 个月的数值，并指出 revenue 最高的月份。",
+      "expected": {"facts": {"revenue_by_month": {"2025-01": 384444, "2025-02": 539885, "2025-03": 568690, "2025-04": 584010, "2025-05": 617204, "2025-06": 588655, "2025-07": 584725, "2025-08": 714140, "2025-09": 652171, "2025-10": 723720, "2025-11": 764533, "2025-12": 818173}, "peak_month": "2025-12"}, "chart_type": "line"},
+      "tolerance": 0
+    },
+    {
+      "id": "sales-07",
+      "dataset": "sales",
+      "question": "计算全年 cost、profit 和 profit margin（profit / revenue），保留两位小数。",
+      "expected": {"facts": {"cost_total": 4675017.0, "profit_total": 2865333.0, "profit_margin": 0.38}},
+      "tolerance": 0.01
+    },
+    {
+      "id": "sales-08",
+      "dataset": "sales",
+      "question": "检查 marketing_spend 的缺失数量和缺失比例，并计算非缺失 marketing_spend 的合计。请明确说明缺失值不能直接当成 0。",
+      "expected": {"facts": {"missing_count": 17, "missing_fraction": 0.0590277778, "observed_spend_total": 222729, "missing_as_zero": false}},
+      "tolerance": 0.000001
+    },
+    {
+      "id": "sales-09",
+      "dataset": "sales",
+      "question": "验证每一行是否满足 revenue = units × unit_price，返回不满足的行数。",
+      "expected": {"facts": {"mismatch_rows": 0, "checked_rows": 288}},
+      "tolerance": 0
+    },
+    {
+      "id": "sales-10",
+      "dataset": "sales",
+      "question": "比较 2025 年 1 月和 12 月的 revenue，计算绝对增加额和相对增长率。",
+      "expected": {"facts": {"january_revenue": 384444, "december_revenue": 818173, "increase": 433729, "growth_rate": 1.1281981251}},
+      "tolerance": 0.000001
+    },
+    {
+      "id": "finance-01",
+      "dataset": "financial_timeseries",
+      "question": "检查数据总行数、每个 symbol 的记录数，以及 date 的最小值和最大值。",
+      "expected": {"facts": {"row_count": 522, "rows_by_symbol": {"SYNTH_A": 261, "SYNTH_B": 261}, "date_min": "2025-01-01", "date_max": "2025-12-31"}},
+      "tolerance": 0
+    },
+    {
+      "id": "finance-02",
+      "dataset": "financial_timeseries",
+      "question": "按日期排序后，返回 SYNTH_A 和 SYNTH_B 的第一条与最后一条 close。",
+      "expected": {"facts": {"first_close": {"SYNTH_A": 98.8, "SYNTH_B": 80.62}, "last_close": {"SYNTH_A": 158.66, "SYNTH_B": 94.33}}},
+      "tolerance": 0.01
+    },
+    {
+      "id": "finance-03",
+      "dataset": "financial_timeseries",
+      "question": "计算两个 symbol 从第一条到最后一条 close 的绝对变化和百分比变化。",
+      "expected": {"facts": {"absolute_change": {"SYNTH_A": 59.86, "SYNTH_B": 13.71}, "percent_change": {"SYNTH_A": 0.6059716599, "SYNTH_B": 0.1701069291}}},
+      "tolerance": 0.000001
+    },
+    {
+      "id": "finance-04",
+      "dataset": "financial_timeseries",
+      "question": "返回两个 symbol 在每个月最后一个有效日期的 close，画折线图。",
+      "expected": {"facts": {"december_month_end_close": {"SYNTH_A": 158.66, "SYNTH_B": 94.33}, "month_count": 12}, "chart_type": "line"},
+      "tolerance": 0.01
+    },
+    {
+      "id": "finance-05",
+      "dataset": "financial_timeseries",
+      "question": "按 symbol 汇总全年 volume，并指出成交量更高的 symbol。",
+      "expected": {"facts": {"volume_total": {"SYNTH_A": 15381029, "SYNTH_B": 14785887}, "top_symbol": "SYNTH_A"}, "chart_type": "bar"},
+      "tolerance": 0
+    },
+    {
+      "id": "finance-06",
+      "dataset": "financial_timeseries",
+      "question": "按 symbol 计算平均 volume，保留两位小数，并返回 close 的最小值和最大值。",
+      "expected": {"facts": {"average_volume": {"SYNTH_A": 58931.15, "SYNTH_B": 56650.91}, "close_min": {"SYNTH_A": 98.6, "SYNTH_B": 78.25}, "close_max": {"SYNTH_A": 158.66, "SYNTH_B": 103.25}}},
+      "tolerance": 0.01
+    }
+  ]
+}
